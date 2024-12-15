@@ -176,17 +176,68 @@ void handleRoot() {
   <!DOCTYPE html>
   <html>
   <head>
-    <title>LoRa Message Viewer</title>
+    <title>LoRa RX</title>
+    <style>
+      /* Dark mode styling */
+      body {
+        background-color: #121212;
+        color: #ffffff;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+
+      h1 {
+        text-align: center;
+        color: #00ffcc;
+      }
+
+      /* Scrollable box for messages */
+      #message-box {
+        border: 1px solid #333;
+        background-color: #1e1e1e;
+        color: #ffffff;
+        padding: 10px;
+        width: 80%;
+        height: 300px;
+        margin: 20px auto;
+        overflow-y: auto;
+        border-radius: 8px;
+      }
+
+      /* Latest message styling */
+      #latest-message {
+        text-align: center;
+        font-weight: bold;
+        color: #00ffcc;
+      }
+    </style>
     <script>
       var socket = new WebSocket("ws://" + location.hostname + ":81/");
+      
       socket.onmessage = function(event) {
-        document.getElementById("message").innerText = event.data;
+        var messageBox = document.getElementById("message-box");
+        
+        // Append the new message
+        messageBox.innerHTML += event.data + "\n";
+        
+        // Scroll to the bottom to show the latest message
+        messageBox.scrollTop = messageBox.scrollHeight;
+        
+        // Update latest message
+        document.getElementById("latest-message").innerText = event.data;
       };
     </script>
   </head>
   <body>
     <h1>LoRa Receiver</h1>
-    <p>Latest Message: <span id="message">Waiting for data...</span></p>
+    
+    <div id="latest-message">Waiting for data...</div>
+    
+    <!-- Scrollable box for message history -->
+    <div id="message-box">
+      <!-- Messages will be appended here -->
+    </div>
   </body>
   </html>
   )rawliteral";
