@@ -7,7 +7,9 @@ Hardware:
 
 PinOut:
 
-![alt text](resources/image.png)
+![Receiver Pinout](resources/image.png)
+
+![ESP8266](resources/NodeMCUv1.0-pinout.jpg)
 
 | NodeMCU Pins | SX1278 Pins |
 | -------------- | ------------- |
@@ -22,4 +24,4 @@ PinOut:
 
 [Refer Tutorial](https://how2electronics.com/lora-sx1278-esp8266-transmitter-receiver/https:/)
 
-![alt text](resources/IMG_8244.jpg)
+![connections](resources/IMG_8244.jpg)
