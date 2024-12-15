@@ -20,4 +20,4 @@ D2                                        DIO0
 
 ![alt text](resources/image.png)
 
-![alt text](resources/IMG_8244.HEIC)
+![alt text](resources/IMG_8244.jpg)
