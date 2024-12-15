@@ -17,3 +17,7 @@ D6                                        MISO
 D5                                        SCK
 D0                                        RST
 D2                                        DIO0
+
+![alt text](resources/image.png)
+
+![alt text](resources/IMG_8244.HEIC)
