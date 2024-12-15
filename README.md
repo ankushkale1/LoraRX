@@ -22,6 +22,6 @@ PinOut:
 | D0           | RST         |
 | D2           | DIO0        |
 
-[Refer Tutorial](https://how2electronics.com/lora-sx1278-esp8266-transmitter-receiver/https:/)
+[Refer Tutorial](https://how2electronics.com/lora-sx1278-esp8266-transmitter-receiver/)
 
 ![connections](resources/IMG_8244.jpg)
