@@ -1,50 +1,3 @@
-// #include <SPI.h>
-// #include <LoRa.h>
-
-// // Pin definitions
-// #define ss 15      // D8 on NodeMCU (GPIO15)
-// #define rst 4      // D2 on NodeMCU (GPIO4)
-// #define dio0 5     // D1 on NodeMCU (GPIO5)
-
-// // Frequency (adjust if using a different frequency band)
-// #define LORA_FREQUENCY 433E6 // 433 MHz (Europe/Asia)
-
-// void setup() {
-//   // Initialize serial communication
-//   Serial.begin(115200);
-//   while (!Serial);
-
-//   Serial.println("LoRa Receiver");
-
-//   // Configure LoRa module pins
-//   LoRa.setPins(ss, rst, dio0);
-
-//   // Initialize LoRa at the specified frequency
-//   if (!LoRa.begin(LORA_FREQUENCY)) {
-//     Serial.println("Starting LoRa failed!");
-//     while (1); // Halt the program if initialization fails
-//   }
-
-//   Serial.println("LoRa Initialized");
-// }
-
-// void loop() {
-//   // Check if a packet is available
-//   int packetSize = LoRa.parsePacket();
-//   if (packetSize) {
-//     Serial.print("Received packet: ");
-
-//     // Read the incoming packet
-//     while (LoRa.available()) {
-//       Serial.print((char)LoRa.read());
-//     }
-
-//     // Display RSSI (Signal Strength)
-//     Serial.print(" with RSSI ");
-//     Serial.println(LoRa.packetRssi());
-//   }
-// }
-
 #include <SPI.h>
 #include <LoRa.h>
 #include <ESP8266WiFi.h>
@@ -79,47 +32,53 @@ void sendAck();
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 
 void setup() {
-  // Serial communication
   Serial.begin(115200);
   while (!Serial);
 
   pinMode(onboardLED, OUTPUT);
   digitalWrite(onboardLED, HIGH); // Turn off LED initially
 
-  // Initialize LoRa
-  Serial.println("LoRa Receiver");
-  LoRa.setPins(ss, rst, dio0);
-  if (!LoRa.begin(LORA_FREQUENCY)) {
-    Serial.println("Starting LoRa failed!");
-    while (1);
-  }
-  Serial.println("LoRa Initialized");
-  lastPacketTime = millis(); // Initialize last packet time
-
-  // Configure LoRa parameters for maximum range
-  LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);      // Max TX power: 20 dBm
-  LoRa.setSpreadingFactor(12); // Spreading Factor: 12 (max range, slower data rate)
-  LoRa.setSignalBandwidth(125E3); // Bandwidth: 125 kHz (low bandwidth, higher range)
-  LoRa.setCodingRate4(5);   // Coding Rate: 4/5 (robust against interference)
-
-  // Set up Wi-Fi hotspot
+  // Initialize Wi-Fi hotspot
   WiFi.softAP(ssid, password);
-  IPAddress ip = WiFi.softAPIP();
-  Serial.print("Wi-Fi hotspot started. IP: ");
-  Serial.println(ip);
+  IPAddress myIP = WiFi.softAPIP();
+  while (myIP[0] == 0) {  // Check if the IP is assigned
+    delay(100);
+    myIP = WiFi.softAPIP();
+  }
+  Serial.print("Hotspot IP: ");
+  Serial.println(myIP);
 
-  // Set up the web server
+  // Initialize web server
   server.on("/", handleRoot);
   server.begin();
   Serial.println("HTTP server started");
 
-  // Set up WebSocket server
+  // Initialize WebSocket server
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
   Serial.println("WebSocket server started");
+
+  // Initialize LoRa
+  Serial.println("LoRa Transmitter");
+  LoRa.setPins(ss, rst, dio0);
+  if (!LoRa.begin(LORA_FREQUENCY)) {
+    Serial.println("Starting LoRa failed!");
+    webSocket.broadcastTXT("Starting LoRa failed!");
+    while (1);
+  }
+
+  LoRa.setSpreadingFactor(12);           // Maximum range
+  LoRa.setSignalBandwidth(125E3);        // Default bandwidth
+  LoRa.setCodingRate4(5);                // Improved robustness
+  LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN); // Max power with PA_BOOST
+
+  Serial.println("LoRa Initialized");
 }
 
 void loop() {
+  server.handleClient();      // Handle HTTP requests
+  webSocket.loop();           // Handle WebSocket connections
+
   // Handle incoming LoRa packets
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
@@ -146,10 +105,6 @@ void loop() {
   } else {
     digitalWrite(onboardLED, HIGH); // Turn OFF LED
   }
-
-  // Handle web server and WebSocket
-  server.handleClient();
-  webSocket.loop();
 }
 
 
@@ -163,6 +118,7 @@ void blinkLED() {
 // Function to send an acknowledgment
 void sendAck() {
   Serial.println("Sending ACK...");
+  webSocket.broadcastTXT("Sending ACK...");
   LoRa.beginPacket();
   LoRa.print("ACK");
   LoRa.endPacket();
@@ -178,52 +134,44 @@ void handleRoot() {
   <head>
     <title>LoRa RX</title>
     <style>
-      /* Dark mode styling */
       body {
         background-color: #121212;
         color: #ffffff;
         font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
       }
-
-      h1 {
-        text-align: center;
-        color: #00ffcc;
-      }
-
-      /* Scrollable box for messages */
       #messages {
-        border: 1px solid #333;
         background-color: #1e1e1e;
-        color: #ffffff;
+        color: #00ff00;
         padding: 10px;
-        width: 80%;
-        height: 300px;
         margin: 20px auto;
+        width: 90%;
+        height: 300px;
         overflow-y: auto;
-        border-radius: 8px;
+        white-space: pre-wrap;
+        border-radius: 5px;
       }
     </style>
     <script>
       var socket = new WebSocket("ws://" + location.hostname + ":81/");
-      
       socket.onmessage = function(event) {
         const messageDiv = document.getElementById("messages");
+        console.info("New Message: " + event.data);
         const newMessage = document.createElement("p");
         newMessage.textContent = event.data;
         messageDiv.appendChild(newMessage);
-        messageDiv.scrollTop = messageDiv.scrollHeight;  // Scroll to the bottom
       };
 
       socket.onerror = function(error) {
-        console.log("WebSocket Error: " + error);
+        const messageDiv = document.getElementById("messages");
+        const newMessage = document.createElement("p");
+        newMessage.textContent = error;
+        messageDiv.appendChild("Error:" + newMessage);
       };
     </script>
   </head>
   <body>
-    <h1>LoRa Receiver</h1>
-    <div id="messages"> Waiting for data... </div>
+    <h1>LoRa Receiver Dashboard</h1>
+    <div id="messages">Waiting for data...</div>
   </body>
   </html>
   )rawliteral";
@@ -232,7 +180,15 @@ void handleRoot() {
 
 // WebSocket event handler
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-  if (type == WStype_TEXT) {
-    Serial.printf("WebSocket Message Received: %s\n", payload);
+  switch (type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("Client %d disconnected\n", num);
+      break;
+    case WStype_CONNECTED:
+      Serial.printf("Client %d connected\n", num);
+      break;
+    case WStype_TEXT:
+      Serial.printf("Received message from client %d: %s\n", num, payload);
+      break;
   }
 }
